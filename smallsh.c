@@ -296,6 +296,17 @@ int sleepCall(struct prompt *cmdLine) {
     return 0;
 }
 
+int cdCall(struct prompt *cmdLine) {
+    char s[100];
+    printf("%s\n",getcwd(s,100));
+    if (cmdLine->numArgs == 1) {
+        chdir(getenv("HOME"));
+    } else {
+        chdir(cmdLine->arglist[1]);
+    }
+    printf("%s\n",getcwd(s,100));
+}
+
 int existingFunct (struct prompt *cmdLine) {
     printf("running existing function \n");
     int file;
@@ -465,8 +476,11 @@ int main(int argc, char *argv[]){
                 sleepCall(list);
             } else if (strcmp(list->command, "cd") == 0) {
                 printf("cd\n");
+                cdCall(list);
             } else if (strcmp(list->command, "status") == 0) {
                 printf("status\n");
+            } else if (strcmp(list->command, "wc") == 0) {
+                printf("word cound\n");
             } else {
                 printf("doing something\n");
                 existingFunct(list);
