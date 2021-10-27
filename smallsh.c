@@ -48,6 +48,42 @@ void printPrompt(struct prompt* aprompt){
     printf("\n");
 }
 
+// Expands variables $$
+char* expandVar(char str1[]) {
+    char str2 [20];
+    char *ret;
+    char temp [20];
+    char tempCmd [20];
+    strcpy(tempCmd, str1);
+    int j = 0;
+    // int numVal = 147;
+    int numVal = getpid();
+    printf("Process id = %d\n", getpid());
+    
+    sprintf(temp, "%d", numVal);
+
+    tempCmd[strlen(tempCmd)] = '\n';
+
+    char * token1 = strtok(tempCmd, "$$");
+    strcpy(str2, token1);
+    strcat(str2, temp);
+    char * token2 = strtok(NULL, "$$");
+    
+    while (token2 != NULL) {
+        strcpy(token1, token2);
+        token2 = strtok(NULL, "$$");
+        strcat(str2, token1);
+
+        if (token2 != NULL){
+            strcat(str2, temp);
+        }
+        
+    }
+    str2[strcspn(str2, "\n")] = 0;
+    strcpy(str1, str2);
+    return str1;
+}
+
 /* Parse the current line which is space delimited and create a
 *  student struct with the data in this line
 *  This function was taken from the student example in Assignment 1.
@@ -334,10 +370,8 @@ int existingFunct (struct prompt *cmdLine) {
                 int exec_output = execvp(cmdLine->arglist[0], cmdLine->arglist);
                 // exec only returns if there is an error
                 perror(cmdLine->command);
-                //if (exec_output == NULL) {
-                    //return 0;
-                // }
-                // exit(2);
+
+                exit(2);
                 break;
             default:
                 // In the parent process
@@ -383,6 +417,11 @@ int main(int argc, char *argv[]){
         // remove the newline character at the end of input
         input[strcspn(input, "\n")] = 0;
         printf("%s\n", input);
+
+        if (strstr(input, "$$") != NULL) {
+            printf("found substring\n");
+            expandVar(input);
+        }
         
         // if input is exit, exit from command prompt
         if (strcmp(input, "exit") == 0) {
