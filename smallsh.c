@@ -8,6 +8,10 @@
 #include <fcntl.h>
 
 
+const int inputLength = 100;
+int status = 0;
+int background_status;
+
 struct prompt
 {
     char *command;
@@ -50,12 +54,12 @@ void printPrompt(struct prompt* aprompt){
 
 // Expands variables $$
 char* expandVar(char str1[]) {
-    char str2 [20];
-    char *ret;
-    char temp [20];
-    char tempCmd [20];
+    char str2 [inputLength];
+    // char *ret;
+    char temp [inputLength];
+    char tempCmd [inputLength];
     strcpy(tempCmd, str1);
-    int j = 0;
+    // int j = 0;
     // int numVal = 147;
     int numVal = getpid();
     printf("Process id = %d\n", getpid());
@@ -94,13 +98,13 @@ struct prompt *createNode(char *string, int length)
     // printf("string %s\n", string);
     struct prompt *currPrompt = malloc(sizeof(struct prompt));
 
-    char *saveptr;
+    // char *saveptr;
 
-    bool isArg = true;
+    // bool isArg = true;
     bool isOfile = false;
     bool isIfile = false;
-    bool isBground = false;
-    struct argument *thisarg = NULL;
+    // bool isBground = false;
+    // struct argument *thisarg = NULL;
     int argIndex = 0;
 
     printf("after setting up \n");
@@ -118,7 +122,7 @@ struct prompt *createNode(char *string, int length)
     // }
     
 
-    char *buffer [length];
+    // char *buffer [length];
     
     fflush(stdout);
 
@@ -140,7 +144,7 @@ struct prompt *createNode(char *string, int length)
     // printf("%s\n", currPrompt->command);
     // loop through the string to extract all other tokens
     while( token != NULL) {
-        bool isBground = false;
+        // bool isBground = false;
         // printf( " %s\n", token ); //printing each token
         token = strtok(NULL, " ");
         // printf("token: %s\n", token);
@@ -173,27 +177,7 @@ struct prompt *createNode(char *string, int length)
                 // printf("arglist %s\n", currPrompt->arglist[argIndex]);
                 // printf("arglist %s\n", currPrompt->arglist[0]);
                 argIndex += 1;
-                // printf("after adding to arglist\n");
-                /*
-                if (currPrompt->arglist == NULL){
-                    
-                    // thisarg = currPrompt->arglist;
-                    printf("thisarg = %s\n", thisarg);
-                    currArg->value = calloc(strlen(token) + 1, sizeof(char));
-                    strcpy(currArg->value, token);
-                    printf("after first arg\n");
-                    currPrompt->arglist = currArg;
-                } else {
-                    thisarg = currPrompt->arglist;
-                    while (thisarg->next != NULL) {
-                        thisarg = thisarg->next;
-                    }
 
-                    currArg->value = calloc(strlen(token) + 1, sizeof(char));
-                    strcpy(currArg->value, token);
-                    thisarg->next = currArg;
-                }
-                */
             }
 
             if (isIfile == true && strcmp(token, "<") != 0 &&  strcmp(token, ">") != 0 ){
@@ -292,12 +276,16 @@ int exProcess(struct prompt *currNode) {
 int sleepCall(struct prompt *cmdLine) {
     int length = atoi(cmdLine->arglist[1]);
     printf("sleeping %i\n", length);
+    printf("Sleeping process %d\n", getpid());
     sleep(length);
+    printf("\nsleeping complete, process id %d\n", getpid());
+    printf(": ");
+    status = 0;
     return 0;
 }
 
 int cdCall(struct prompt *cmdLine) {
-    char s[100];
+    char s[inputLength];
     printf("%s\n",getcwd(s,100));
     if (cmdLine->numArgs == 1) {
         chdir(getenv("HOME"));
@@ -305,12 +293,23 @@ int cdCall(struct prompt *cmdLine) {
         chdir(cmdLine->arglist[1]);
     }
     printf("%s\n",getcwd(s,100));
+    status = 0;
+
+    return 0;
+}
+
+int statusCall(struct prompt *cmdLine) {
+
+    printf("exit value %d\n", background_status);
+
+    return 0;
 }
 
 int existingFunct (struct prompt *cmdLine) {
     printf("running existing function \n");
     int file;
     // if (cmdLine->ofile != NULL) {
+    // status = 0;
 
     // }
     
@@ -329,6 +328,7 @@ int existingFunct (struct prompt *cmdLine) {
         switch(spawnPid){
             case -1:
                 perror("fork()\n");
+                status = 1;
                 exit(1);
                 break;
             case 0:
@@ -352,8 +352,9 @@ int existingFunct (struct prompt *cmdLine) {
                 // printf("PARENT(%d): child(%d) terminated. Exiting\n", getpid(), spawnPid);
                 // exit(0);
                 break;
-                
+            
         } 
+        // status = 0;
     } else {
 
         // uncomment to work on forking
@@ -381,6 +382,18 @@ int existingFunct (struct prompt *cmdLine) {
                 int exec_output = execvp(cmdLine->arglist[0], cmdLine->arglist);
                 // exec only returns if there is an error
                 perror(cmdLine->command);
+                if (exec_output != NULL) {
+                    printf("error executing\n");
+                    printf("background status now %d\n", background_status);
+                    status = 1;
+                    background_status = 1;
+                    printf("background status now %d\n", background_status);
+                } else {
+                    printf("successful execution\n");
+                    status = 0;
+                }
+
+                
 
                 exit(2);
                 break;
@@ -390,6 +403,7 @@ int existingFunct (struct prompt *cmdLine) {
                 spawnPid = waitpid(spawnPid, &childStatus, 0);
                 // printf("PARENT(%d): child(%d) terminated. Exiting\n", getpid(), spawnPid);
                 // exit(0);
+                
                 break;
                 
         } 
@@ -398,6 +412,7 @@ int existingFunct (struct prompt *cmdLine) {
             NULL;
             // call functions with execvp here!
     }
+    
     return 0;
 }
 
@@ -405,10 +420,14 @@ int main(int argc, char *argv[]){
 
     char *buffer;
     size_t bufsize = 5;
-    size_t characters;
+    // size_t characters;
     bool reprompt = false;
-    int inputLen = 30;
+    bool hasSpawned;
+    int inputLen = inputLength;
     char input [inputLen];
+    pid_t spawnpid = -5;
+    background_status = 0;
+
     
 
     buffer = (char *)malloc(bufsize * sizeof(char));
@@ -420,34 +439,60 @@ int main(int argc, char *argv[]){
 
     do {
         reprompt = false;
+        hasSpawned = false;
+
+        if (spawnpid == 0) {
+            return 0;
+        }
+
         printf(": ");
 
         // get input
+        
         fgets(input, inputLen, stdin);
 
         // remove the newline character at the end of input
         input[strcspn(input, "\n")] = 0;
         printf("%s\n", input);
 
-        if (strstr(input, "$$") != NULL) {
-            printf("found substring\n");
-            expandVar(input);
+        if (strlen(input) >= 30) {
+            if (strstr(input, "echo") != NULL) {
+                for (int i = 5; i < strlen(input); i++) {
+                    printf("%c", input[i]);
+                }
+                printf("\n");
+                
+            }
+
+            reprompt = true;
+        } else {
+            if (strstr(input, "$$") != NULL) {
+                printf("found substring\n");
+                expandVar(input);
+            }
+
+
+            if (strcmp(input, "exit") == 0) {
+                return 0;
+            }
+
+            if (strlen(input) == 0 || input[0] == '#'){
+                printf("reprompt\n");
+                reprompt = true;
+            }
         }
+
+        
         
         // if input is exit, exit from command prompt
-        if (strcmp(input, "exit") == 0) {
-            return 0;
-        }
+
 
         // return;
         // printf("%zu characters were read.\n",characters);
         // printf("You typed: %s",buffer);
         // printf("%c\n ", buffer[0]);
 
-        if (strlen(input) == 0 || input[0] == '#'){
-            printf("reprompt\n");
-            reprompt = true;
-        }
+        
 
         // printf("%d\n", reprompt);
         // return 0;
@@ -457,84 +502,66 @@ int main(int argc, char *argv[]){
             struct prompt *list = createNode(input, strlen(input));
             // printPrompt(list);
             printf("after creation\n");
+
+            if (list->bground == true) {
+                spawnpid = fork();
+                switch (spawnpid){
+
+                    case -1:
+                    // Code in this branch will be exected by the parent when fork() fails and the creation of child process fails as well
+                        perror("fork() failed!");
+                        exit(1);
+                        break;
+                    case 0:
+                // spawnpid is 0. This means the child will execute the code in this branch
+                        
+                        printf("I am the child! processID = %d\n", getpid());
+                        break;
+                    default:
+                        printf("I am the parent! processID = %d\n", getpid());
+                        hasSpawned = true;
+                }
+            }
+
             // return 0;
-            if (strcmp(list->command, "echo") == 0){
-                for (int i = 1; i < list->numArgs; i ++) {
-                    printf("%s ", list->arglist[i]);
+            if (hasSpawned == false){
+
+                if (strcmp(list->command, "echo") == 0){
+                    for (int i = 1; i < list->numArgs; i ++) {
+                        printf("%s ", list->arglist[i]);
+                    }
+
+                    // printf("yes in echo\n");
+                    //struct argument *reading = list->arglist;
+                    //while (reading != NULL){
+                    //    printf("%s ", reading->value);
+                    //    reading = reading->next;
+                    //}
+                    printf("\n");
+                    
+                } else if (strcmp(list->command, "sleep") == 0) {
+                    // printf("sleeping\n");
+                    sleepCall(list);
+                } else if (strcmp(list->command, "cd") == 0) {
+                    printf("cd\n");
+                    cdCall(list);
+                } else if (strcmp(list->command, "status") == 0) {
+                    printf("status\n");
+                    statusCall(list);
+                } else if (strcmp(list->command, "wc") == 0) {
+                    printf("word count\n");
+                } else if (strcmp(list->command, "kill") == 0 ||
+                            strcmp(list->command, "pkill") == 0) {
+                    printf("killing\n");
+                } else {
+                    printf("doing something\n");
+                    existingFunct(list);
+                        
                 }
 
-                // printf("yes in echo\n");
-                //struct argument *reading = list->arglist;
-                //while (reading != NULL){
-                //    printf("%s ", reading->value);
-                //    reading = reading->next;
-                //}
-                printf("\n");
-                
-            } else if (strcmp(list->command, "sleep") == 0) {
-                // printf("sleeping\n");
-                sleepCall(list);
-            } else if (strcmp(list->command, "cd") == 0) {
-                printf("cd\n");
-                cdCall(list);
-            } else if (strcmp(list->command, "status") == 0) {
-                printf("status\n");
-            } else if (strcmp(list->command, "wc") == 0) {
-                printf("word cound\n");
-            } else {
-                printf("doing something\n");
-                existingFunct(list);
-                // struct prompt *list = createNode(input, strlen(input));
-                // printf("after node creation");
-                //printf("after creation, printing prompt:\n");
-                //printf("%s\n", list->command);
-                //printf("Comparing to sleep: %i\n", strcmp(list->command, "sleep") == 0);
-
-                // printPrompt(list);
-
-                /*
-                if (strcmp(list->command, "sleep") == 0) {
-                    // printf("inside if loop\n");
-                    // sleep(atoi(list->arglist->value));
-                    // printf("%i\n", atoi(list->arglist->value));
-                    int lenSleep = atoi(list->arglist->value);
-                    sleep(lenSleep);
-                } else if (strcmp(list->command, "cd") == 0) {
-                    printf("Run implemented cd\n");
-                } else if (strcmp(list->command, "status")) {
-                    printf("Run impelemented status\n");
-                } else {
-                    printf("%i\n", strcmp(list->command, "sleep") == 0);
-                    if (strcmp(list->command, "sleep") == 0) {
-                        printf("entering sleep\n");
-                        sleep(atoi(list->arglist->value));
-                    }
-                    printf("Running preimplemented commands\n");
-                    */
-
-                    
             }
+
         }
-            /*
-            } else if (strcmp(buffer, "ls\n") == 0) {
-                // Run /bin/ls and pass it the argument -al
-                // execl("/bin/ls", "/bin/ls", NULL);
-                // createNode(buffer, characters);
-                // forkLs();
-
-                /* exec returns only on error */
-                // perror("execl");  
-                /*
-            } else if (strcmp(buffer, "")) {
-                NULL;
-            } else {
-                createNode(buffer, characters);
-
-            }
-
-            */
-
-        // }
 
     } while (strcmp(buffer, "exit") !=0);
     // scanf()
