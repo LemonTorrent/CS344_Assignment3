@@ -300,7 +300,7 @@ int cdCall(struct prompt *cmdLine) {
 
 int statusCall(struct prompt *cmdLine) {
 
-    printf("exit value %d\n", background_status);
+    printf("exit value %d\n", status);
 
     return 0;
 }
@@ -308,6 +308,7 @@ int statusCall(struct prompt *cmdLine) {
 int existingFunct (struct prompt *cmdLine) {
     printf("running existing function \n");
     int file;
+    int id;
     // if (cmdLine->ofile != NULL) {
     // status = 0;
 
@@ -384,23 +385,31 @@ int existingFunct (struct prompt *cmdLine) {
                 perror(cmdLine->command);
                 if (exec_output != NULL) {
                     printf("error executing\n");
-                    printf("background status now %d\n", background_status);
-                    status = 1;
-                    background_status = 1;
-                    printf("background status now %d\n", background_status);
+                    // printf("background status now %d\n", background_status);
+                    // status = 1;
+                    // background_status = 1;
+                    // exit(1);
+                    // printf("background status now %d\n", background_status);
+                    exit(2);
                 } else {
                     printf("successful execution\n");
-                    status = 0;
+                    // status = 0;
                 }
 
-                
-
-                exit(2);
+                exit(0);
                 break;
             default:
                 // In the parent process
                 // Wait for child's termination
                 spawnPid = waitpid(spawnPid, &childStatus, 0);
+                printf("Spawnpid %d\n", spawnPid);
+                printf("childStatus %d\n", childStatus);
+                if (childStatus != 0) {
+                    status = 1;
+                } else {
+                    status = 0;
+                }
+                id = spawnPid;
                 // printf("PARENT(%d): child(%d) terminated. Exiting\n", getpid(), spawnPid);
                 // exit(0);
                 
@@ -413,6 +422,8 @@ int existingFunct (struct prompt *cmdLine) {
             // call functions with execvp here!
     }
     
+    printf("Spawnpid %d\n", id);
+
     return 0;
 }
 
